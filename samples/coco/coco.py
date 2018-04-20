@@ -31,6 +31,7 @@ import os
 import sys
 import time
 import numpy as np
+
 import imgaug  # https://github.com/aleju/imgaug (pip3 install imageaug)
 
 # Download and install the Python COCO tools from https://github.com/waleedka/coco
@@ -39,24 +40,34 @@ import imgaug  # https://github.com/aleju/imgaug (pip3 install imageaug)
 # I submitted a pull request https://github.com/cocodataset/cocoapi/pull/50
 # If the PR is merged then use the original repo.
 # Note: Edit PythonAPI/Makefile and replace "python" with "python3".
+sys.path.append("/home/gcx/repositories/cocoapi/PythonAPI")  # To find local version
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from pycocotools import mask as maskUtils
 
 import zipfile
-import urllib.request
+from urllib2 import urlopen
+from urllib import urlretrieve
+# import urllib.request
 import shutil
 
 # Root directory of the project
-ROOT_DIR = os.path.abspath("../../")
+# ROOT_DIR = os.path.abspath("../../")
+ROOT_DIR = os.path.abspath("/home/gcx/repositories/mask-keras/Mask_RCNN/samples")
+ROOT_DIR = os.path.abspath("/home/gcx/repositories/mask-keras/Mask_RCNN/mrcnn")
 
 # Import Mask RCNN
 sys.path.append(ROOT_DIR)  # To find local version of the library
 from mrcnn.config import Config
 from mrcnn import model as modellib, utils
+# from config import Config
+# import model as modellib, utils
 
 # Path to trained weights file
 COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
+
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # Directory to save logs and model checkpoints, if not provided
 # through the command line argument --logs
@@ -174,8 +185,11 @@ class CocoDataset(utils.Dataset):
         if not os.path.exists(imgDir):
             os.makedirs(imgDir)
             print("Downloading images to " + imgZipFile + " ...")
-            with urllib.request.urlopen(imgURL) as resp, open(imgZipFile, 'wb') as out:
-                shutil.copyfileobj(resp, out)
+            # with urllib.request.urlopen(imgURL) as resp, open(imgZipFile, 'wb') as out:       # CRUZ
+            #     shutil.copyfileobj(resp, out)                                                 # CRUZ
+
+            urlretrieve(imgURL, '.')
+
             print("... done downloading.")
             print("Unzipping " + imgZipFile)
             with zipfile.ZipFile(imgZipFile, "r") as zip_ref:
@@ -391,6 +405,7 @@ def evaluate_coco(model, dataset, coco, eval_type="bbox", limit=0, image_ids=Non
     print("Total time: ", time.time() - t_start)
 
 
+
 ############################################################
 #  Training
 ############################################################
@@ -430,6 +445,7 @@ if __name__ == '__main__':
                         type=bool)
     args = parser.parse_args()
     print("Command: ", args.command)
+    args.command = "train"
     print("Model: ", args.model)
     print("Dataset: ", args.dataset)
     print("Year: ", args.year)

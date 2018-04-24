@@ -232,6 +232,9 @@ def box_refinement(box, gt_box):
 #  Dataset
 ############################################################
 
+def _isArrayLike(obj):
+    return hasattr(obj, '__iter__') and hasattr(obj, '__len__')
+
 class Dataset(object):
     """The base class for dataset classes.
     To use it, create a new class that adds functions specific to the dataset
@@ -390,6 +393,28 @@ class Dataset(object):
         class_ids = np.empty([0], np.int32)
         return mask, class_ids
 
+    def getCatIds(self, catNms=[], supNms=[], catIds=[]):
+        """
+        filtering parameters. default skips that filter.
+        :param catNms (str array)  : get cats for given cat names
+        :param supNms (str array)  : get cats for given supercategory names
+        :param catIds (int array)  : get cats for given cat ids
+        :return: ids (int array)   : integer array of cat ids
+        """
+        catNms = catNms if _isArrayLike(catNms) else [catNms]
+        supNms = supNms if _isArrayLike(supNms) else [supNms]
+        catIds = catIds if _isArrayLike(catIds) else [catIds]
+
+        if len(catNms) == len(supNms) == len(catIds) == 0:
+            cats = self.dataset['categories']
+        else:
+            cats = self.dataset['categories']
+            cats = cats if len(catNms) == 0 else [cat for cat in cats if cat['name']          in catNms]
+            cats = cats if len(supNms) == 0 else [cat for cat in cats if cat['supercategory'] in supNms]
+            cats = cats if len(catIds) == 0 else [cat for cat in cats if cat['id']            in catIds]
+        ids = [cat['id'] for cat in cats]
+        return ids
+
 
 def resize_image(image, min_dim=None, max_dim=None, min_scale=None, mode="square"):
     """Resizes an image keeping the aspect ratio unchanged.
@@ -438,7 +463,7 @@ def resize_image(image, min_dim=None, max_dim=None, min_scale=None, mode="square
     # Scale?
     if min_dim:
         # Scale up but not down
-        scale = max(1, min_dim / min(h, w))
+        scale = max(1, min_dim / min(1.0*h, 1.0*w))
     if min_scale and scale < min_scale:
         scale = min_scale
 
@@ -446,7 +471,7 @@ def resize_image(image, min_dim=None, max_dim=None, min_scale=None, mode="square
     if max_dim and mode == "square":
         image_max = max(h, w)
         if round(image_max * scale) > max_dim:
-            scale = max_dim / image_max
+            scale = max_dim / (1.0*image_max)
 
     # Resize image using bilinear interpolation
     if scale != 1:
@@ -876,7 +901,7 @@ def norm_boxes(boxes, shape):
     h, w = shape
     scale = np.array([h - 1, w - 1, h - 1, w - 1])
     shift = np.array([0, 0, 1, 1])
-    return np.divide((boxes - shift), scale).astype(np.float32)
+    return np.divide((boxes - shift), scale.astype(np.float32)).astype(np.float32)
 
 
 def denorm_boxes(boxes, shape):

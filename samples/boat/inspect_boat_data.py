@@ -36,7 +36,8 @@ BOAT_DIR = os.path.join(ROOT_DIR, "/home/gcx/datasets/boat_voc_format")
 # Get the dataset from the releases page
 # https://github.com/matterport/Mask_RCNN/releases
 dataset = boat.BoatDataset()
-dataset.load_boat(BOAT_DIR, "train")
+# dataset.load_boat(BOAT_DIR, "train")
+dataset.load_coco_boat(BOAT_DIR, "train")
 
 # Must call before using the dataset
 dataset.prepare()

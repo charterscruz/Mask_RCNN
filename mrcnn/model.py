@@ -1271,8 +1271,10 @@ def load_image_gt(dataset, config, image_id, augment=False, augmentation=None,
     # Different datasets have different classes, so track the
     # classes supported in the dataset of this image.
     active_class_ids = np.zeros([dataset.num_classes], dtype=np.int32)
-    source_class_ids = dataset.source_class_ids[dataset.image_info[image_id]["source"]]
-    active_class_ids[source_class_ids] = 1
+    # source_class_ids = dataset.source_class_ids[dataset.image_info[image_id]["source"]] ## CRUZ
+    # active_class_ids[source_class_ids] = 1 ## CRUZ
+    source_class_ids = 1
+    active_class_ids[source_class_ids-1] = 1
 
     # Resize masks to smaller size to reduce memory usage
     if use_mini_mask:
@@ -1785,7 +1787,7 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
                         outputs.extend(
                             [batch_mrcnn_class_ids, batch_mrcnn_bbox, batch_mrcnn_mask])
 
-                yield inputs, outputs
+                yield inputs, outputs # todo verifiar dimensoes do que esta a ser retornado
 
                 # start a new batch
                 b = 0

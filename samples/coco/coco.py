@@ -40,7 +40,7 @@ import imgaug  # https://github.com/aleju/imgaug (pip3 install imageaug)
 # I submitted a pull request https://github.com/cocodataset/cocoapi/pull/50
 # If the PR is merged then use the original repo.
 # Note: Edit PythonAPI/Makefile and replace "python" with "python3".
-sys.path.append("/home/gcx/repositories/cocoapi/PythonAPI")  # To find local version
+# sys.path.append("/home/gcx/repositories/cocoapi/PythonAPI")  # To find local version
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from pycocotools import mask as maskUtils
@@ -153,6 +153,7 @@ class CocoDataset(utils.Dataset):
                 height=coco.imgs[i]["height"],
                 annotations=coco.loadAnns(coco.getAnnIds(
                     imgIds=[i], catIds=class_ids, iscrowd=None)))
+
         if return_coco:
             return coco
 

@@ -43,7 +43,6 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 cv2.namedWindow('test', 0)
-
 cv2.resizeWindow('test', 192, 108)
 
 # Import Mask RCNN
@@ -81,13 +80,13 @@ class BoatConfig(Config):
 
     # Number of classes (including background)
     # NUM_CLASSES = 1  # Background + baloon
-    NUM_CLASSES = 1 + 1  # Background + baloon
+    NUM_CLASSES = 1 + 1  # Background + boat
 
     # Number of training steps per epoch
     STEPS_PER_EPOCH = 100
 
     # Skip detections with < 90% confidence
-    DETECTION_MIN_CONFIDENCE = 0.85
+    DETECTION_MIN_CONFIDENCE = 0.9
 
 
 ############################################################
@@ -95,62 +94,6 @@ class BoatConfig(Config):
 ############################################################
 
 class BoatDataset(utils.Dataset):
-
-    # def load_boat(self, dataset_dir, subset):
-    #     """Load a subset of the Boat dataset.
-    #     dataset_dir: Root directory of the dataset.
-    #     subset: Subset to load: train or val
-    #     """
-    #     # Add classes. We have only one class to add.
-    #     self.add_class("boat", 1, "boat")
-    #
-    #     # Train or validation dataset?
-    #     assert subset in ["train", "val"]
-    #     dataset_dir = os.path.join(dataset_dir, subset)
-    #
-    #     # Load annotations
-    #     # VGG Image Annotator saves each image in the form:
-    #     # { 'filename': '28503151_5b5b7ec140_b.jpg',
-    #     #   'regions': {
-    #     #       '0': {
-    #     #           'region_attributes': {},
-    #     #           'shape_attributes': {
-    #     #               'all_points_x': [...],
-    #     #               'all_points_y': [...],
-    #     #               'name': 'polygon'}},
-    #     #       ... more regions ...
-    #     #   },
-    #     #   'size': 100202
-    #     # }
-    #     # We mostly care about the x and y coordinates of each region
-    #     # annotations = json.load(open(os.path.join(dataset_dir, "via_region_data.json")))   # CRUZ
-    #     annotations = json.load(open(os.path.join(dataset_dir, "instances_boat.json")))
-    #     annotations = list(annotations.values())  # don't need the dict keys
-    #
-    #     # The VIA tool saves images in the JSON even if they don't have any
-    #     # annotations. Skip unannotated images.
-    #     # annotations = [a for a in annotations if a['regions']]    # CRUZ
-    #
-    #     # Add images
-    #     for a in annotations:
-    #         # Get the x, y coordinaets of points of the polygons that make up
-    #         # the outline of each object instance. There are stores in the
-    #         # shape_attributes (see json format above)
-    #         polygons = [r['shape_attributes'] for r in a['regions'].values()]
-    #
-    #         # load_mask() needs the image size to convert polygons to masks.
-    #         # Unfortunately, VIA doesn't include it in JSON, so we must read
-    #         # the image. This is only managable since the dataset is tiny.
-    #         image_path = os.path.join(dataset_dir, a['filename'])
-    #         image = skimage.io.imread(image_path)
-    #         height, width = image.shape[:2]
-    #
-    #         self.add_image(
-    #             "boat",
-    #             image_id=a['filename'],  # use file name as a unique image id
-    #             path=image_path,
-    #             width=width, height=height,
-    #             polygons=polygons)
 
     # def load_coco_boat
     def load_coco_boat(self, dataset_dir, subset, class_ids=None,
@@ -248,8 +191,9 @@ class BoatDataset(utils.Dataset):
             #     "coco.{}".format(annotation['category_id']))   ## CRUZ
             class_id = 1
             if class_id:
-                m = self.annToMask(annotation, image_info["height"],
-                                   image_info["width"])
+                # m = self.annToMask(annotation, image_info["height"],
+                #                    image_info["width"])
+                m = self.annToMask(annotation, 416, 416)
                 # Some objects are so small that they're less than 1 pixel area
                 # and end up rounded out. Skip those objects.
                 if m.max() < 1:
@@ -389,8 +333,8 @@ def place_bb(image, bbs, scores):
     # Copy color pixels from the original color image where mask is set
     if len(bbs) != 0:
         for bb_idx, indv_bb in enumerate(bbs):
-            print(bb_idx)
-            print(indv_bb)
+            print('bbx number: ', bb_idx)
+
             top_left = (indv_bb[0], indv_bb[1])
             # cv2.rectangle(gray, (indv_bb[1], indv_bb[0]), (indv_bb[3], indv_bb[2]), [0, 0, 255], 2)
             # cv2.imshow('test', gray)
@@ -408,7 +352,7 @@ def place_bb(image, bbs, scores):
 
 
 
-def detect_and_place_bb(model, image_path=None, video_path=None):
+def detect_and_place_bb(model, image_path=None, video_path=None, save_video=False):
     assert image_path or video_path
 
     # Image or video?
@@ -436,10 +380,11 @@ def detect_and_place_bb(model, image_path=None, video_path=None):
         # vcapture.set(cv2.CAP_PROP_POS_FRAMES, 500)
 
         # Define codec and create video writer
-        file_name = "splash_{:%Y%m%dT%H%M%S}.avi".format(datetime.datetime.now())
-        vwriter = cv2.VideoWriter(file_name,
-                                  cv2.VideoWriter_fourcc(*'MJPG'),
-                                  fps, (width, height))
+        if save_video:
+            file_name = "splash_{:%Y%m%dT%H%M%S}.avi".format(datetime.datetime.now())
+            vwriter = cv2.VideoWriter(file_name,
+                                      cv2.VideoWriter_fourcc(*'MJPG'),
+                                      fps, (width, height))
 
         count = 0
         success = True
@@ -455,23 +400,34 @@ def detect_and_place_bb(model, image_path=None, video_path=None):
                 # Color splash
                 splash = splash_color(image, r['masks'])
 
+                if len(r['rois'] > 0):
+                    idx = utils.non_max_suppression(r['rois'], r['scores'], 0.85)
+                    r_rois = r['rois'][idx]
+                    r_scores = r['scores'][idx]
+                else:
+                    r_rois = r['rois']
+                    r_scores = r['scores']
+
                 # place bb
-                splash, bbs= place_bb(splash, r['rois'], r['scores'])
+                # splash, bbs= place_bb(splash, r['rois'], r['scores'])
+                splash, bbs= place_bb(splash, r_rois, r_scores)
 
                 for gt_idx in range(bbs.shape[0]):
                     gt_files.write(str(count) + ' ' +
-                                   str(bbs[gt_idx, 0]) + ' ' + str(bbs[gt_idx, 1]) + ' '
-                                   + str(bbs[gt_idx, 2]) + ' ' + str(bbs[gt_idx, 3]) +
+                                   str(bbs[gt_idx, 1]) + ' ' + str(bbs[gt_idx, 0]) + ' '
+                                   + str(bbs[gt_idx, 3]) + ' ' + str(bbs[gt_idx, 2]) +
                                    ' 1 ' + str(bbs[gt_idx, 4]) + '\n')
 
                 # RGB -> BGR to save image to video
                 splash = splash[..., ::-1]
                 # Add image to video writer
-                vwriter.write(splash)
+                if save_video:
+                    vwriter.write(splash)
                 count += 1
-        vwriter.release()
-    print("Saved to ", file_name)
-    gt_files.close()
+        if save_video:
+            vwriter.release()
+        print("Saved to ", file_name)
+        gt_files.close()
 
 
 ############################################################
@@ -503,6 +459,10 @@ if __name__ == '__main__':
     parser.add_argument('--video', required=False,
                         metavar="path or URL to video",
                         help='Video to apply the color splash effect on')
+    parser.add_argument('--save_video', default=False,
+                        metavar="Boolean",
+                        help='create a video with results')
+
     args = parser.parse_args()
 
     # Validate arguments
@@ -567,7 +527,7 @@ if __name__ == '__main__':
         train(model)
     elif args.command == "deploy":
         detect_and_place_bb(model, image_path=args.image,
-                                video_path=args.video)
+                                video_path=args.video, save_video=args.save_video)
     else:
         print("'{}' is not recognized. "
               "Use 'train' or 'splash'".format(args.command))

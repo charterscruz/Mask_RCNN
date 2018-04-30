@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.lines as lines
 from matplotlib.patches import Polygon
+from cv2 import resize
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("../../")
@@ -29,7 +30,7 @@ sys.path.append('samples/boat')
 import boat
 
 config = boat.BoatConfig()
-BOAT_DIR = os.path.join(ROOT_DIR, "/home/gcx/datasets/boat_voc_format")
+BOAT_DIR = os.path.join(ROOT_DIR, "/home/gcx/datasets/boat_voc_format/train")
 
 
 # Load dataset
@@ -52,6 +53,8 @@ for i, info in enumerate(dataset.class_info):
 image_ids = np.random.choice(dataset.image_ids, 4)
 for image_id in image_ids:
     image = dataset.load_image(image_id)
+    # image = resize(image, (800, 800))
+
     mask, class_ids = dataset.load_mask(image_id)
     visualize.display_top_masks(image, mask, class_ids, dataset.class_names)
 
@@ -60,6 +63,7 @@ for image_id in image_ids:
 # Load random image and mask.
 image_id = random.choice(dataset.image_ids)
 image = dataset.load_image(image_id)
+# image = resize(image, (800, 800))
 mask, class_ids = dataset.load_mask(image_id)
 # Compute Bounding box
 bbox = utils.extract_bboxes(mask)
@@ -78,6 +82,7 @@ visualize.display_instances(image, bbox, mask, class_ids, dataset.class_names)
 # Load random image and mask.
 image_id = np.random.choice(dataset.image_ids, 1)[0]
 image = dataset.load_image(image_id)
+# image = resize(image, (800, 800))
 mask, class_ids = dataset.load_mask(image_id)
 original_shape = image.shape
 # Resize
@@ -99,7 +104,6 @@ log("class_ids", class_ids)
 log("bbox", bbox)
 # Display image and instances
 visualize.display_instances(image, bbox, mask, class_ids, dataset.class_names)
-
 
 
 image_id = np.random.choice(dataset.image_ids, 1)[0]
